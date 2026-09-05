@@ -82,6 +82,26 @@
   }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
+  .disc-hub{
+    position:absolute;
+    border-radius:50%;
+    pointer-events:none;
+    background: radial-gradient(circle at 35% 30%, #6e6e6e 0%, #4d4d4d 45%, #333333 72%, #1c1c1c 100%);
+    border:2px solid rgba(0,0,0,0.85);
+    box-shadow: inset 0 0 0 3px rgba(255,255,255,0.12), 0 1px 3px rgba(0,0,0,0.5);
+    display:none;
+  }
+  .disc-hub::after{
+    content:'';
+    position:absolute;
+    top:50%; left:50%;
+    width:20%; height:20%;
+    background:#141414;
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+    box-shadow:inset 0 0 2px rgba(0,0,0,0.9);
+  }
+
   .disc-hole.empty{
     display:flex;
     align-items:center;
@@ -161,6 +181,7 @@
     <h1>Disc Swap GIF</h1>
     <div class="rule"></div>
     <p>Upload a photo and it drops into the disc, spinning in place while the rest of the sleeve stays put. Drag to reposition, scroll/pinch or use the slider to zoom.</p>
+    <p><a href="ipod.html">Open iPod Duotone Maker</a></p>
   </header>
 
   <div class="stage">
@@ -171,6 +192,7 @@
         <div class="disc-hole empty" id="discHole">
           <p>Upload a photo to fill the disc</p>
         </div>
+        <div class="disc-hub" id="discHub"></div>
       </div>
       <input type="file" id="fileInput" accept="image/*">
       <button id="uploadBtn" type="button">Upload photo</button>
@@ -242,10 +264,12 @@
   const DISC_CX = 372;
   const DISC_CY = 528;
   const DISC_R  = 229;
+  const HUB_RATIO = 0.29; // inner hub circle size, relative to disc radius
 
   const templateFrame = document.getElementById('templateFrame');
   const templateBg = document.getElementById('templateBg');
   const discHole = document.getElementById('discHole');
+  const discHub = document.getElementById('discHub');
   const fileInput = document.getElementById('fileInput');
   const uploadBtn = document.getElementById('uploadBtn');
   const changeBtn = document.getElementById('changeBtn');
@@ -291,6 +315,12 @@
     discHole.style.left = (screenCx - screenR) + 'px';
     discHole.style.top = (screenCy - screenR) + 'px';
 
+    const hubR = screenR * HUB_RATIO;
+    discHub.style.width = (hubR * 2) + 'px';
+    discHub.style.height = (hubR * 2) + 'px';
+    discHub.style.left = (screenCx - hubR) + 'px';
+    discHub.style.top = (screenCy - hubR) + 'px';
+
     if (userImg) positionUserImg();
   }
   window.addEventListener('resize', layoutTemplate);
@@ -327,6 +357,7 @@
     offsetX = 0; offsetY = 0; zoom = 1;
     zoomSlider.value = 1;
     zoomControl.style.display = 'block';
+    discHub.style.display = 'block';
     changeBtn.style.display = 'inline-block';
     uploadBtn.textContent = 'Upload another';
     generateBtn.disabled = false;
@@ -405,9 +436,29 @@
   };
   const WORKER_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js';
 
+  function drawHub(ctx, cx, cy, r){
+    const hubR = r * HUB_RATIO;
+    const grad = ctx.createRadialGradient(cx - hubR * 0.3, cy - hubR * 0.35, hubR * 0.1, cx, cy, hubR);
+    grad.addColorStop(0, '#6e6e6e');
+    grad.addColorStop(0.45, '#4d4d4d');
+    grad.addColorStop(0.72, '#333333');
+    grad.addColorStop(1, '#1c1c1c');
+    ctx.beginPath();
+    ctx.arc(cx, cy, hubR, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, hubR * 0.06);
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, hubR * 0.2, 0, Math.PI * 2);
+    ctx.fillStyle = '#141414';
+    ctx.fill();
+  }
+
   generateBtn.addEventListener('click', generateGif);
 
-  function generateGif(){
+  async function generateGif(){
     if (!userImg) return;
 
     generateBtn.disabled = true;
@@ -443,12 +494,26 @@
     canvas.width = outW; canvas.height = outH;
     const ctx = canvas.getContext('2d');
 
+    let workerUrl = null;
+    try {
+      const workerResponse = await fetch(WORKER_SCRIPT, { mode: 'cors', cache: 'no-cache' });
+      if (!workerResponse.ok) throw new Error('Unable to load GIF worker');
+      const workerSource = await workerResponse.text();
+      workerUrl = URL.createObjectURL(new Blob([workerSource], { type: 'application/javascript' }));
+    } catch (error) {
+      progressLabel.textContent = 'GIF export failed. Open the page online or try again.';
+      progressWrap.classList.add('hidden');
+      progressWrap.style.display = 'none';
+      generateBtn.disabled = false;
+      return;
+    }
+
     const gif = new GIF({
       workers: 4,
       quality: preset.gifQuality,
       width: outW,
       height: outH,
-      workerScript: WORKER_SCRIPT,
+      workerScript: workerUrl,
       repeat: 0
     });
 
@@ -467,6 +532,8 @@
       ctx.drawImage(userImg, drawX, drawY, drawW, drawH);
       ctx.restore();
 
+      drawHub(ctx, cx, cy, r);
+
       gif.addFrame(ctx, { copy: true, delay: delayMs });
     }
 
@@ -481,6 +548,14 @@
       resultSection.classList.remove('hidden');
       resultSection.style.display = 'block';
       generateBtn.disabled = false;
+      setTimeout(() => URL.revokeObjectURL(workerUrl), 1000);
+    });
+    gif.on('error', () => {
+      progressLabel.textContent = 'GIF export failed. Try Fast draft.';
+      progressWrap.classList.add('hidden');
+      progressWrap.style.display = 'none';
+      generateBtn.disabled = false;
+      URL.revokeObjectURL(workerUrl);
     });
     gif.render();
   }
