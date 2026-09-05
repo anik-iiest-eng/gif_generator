@@ -430,9 +430,9 @@
 
   // ---- GIF generation ----
   const QUALITY_PRESETS = {
-    fast:     { frames: 36, gifQuality: 15 },
-    balanced: { frames: 60, gifQuality: 8  },
-    ultra:    { frames: 90, gifQuality: 1  }
+    fast:     { frames: 60, gifQuality: 15, dither: false },
+    balanced: { frames: 180, gifQuality: 8, dither: 'FloydSteinberg-serpentine' },
+    ultra:    { frames: 120, gifQuality: 1, dither: 'FloydSteinberg-serpentine' }
   };
   const WORKER_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js';
 
@@ -514,6 +514,7 @@
       width: outW,
       height: outH,
       workerScript: workerUrl,
+      dither: preset.dither,
       repeat: 0
     });
 
