@@ -5,8 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Poster Maker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@500;800&family=Baloo+Da+2:wght@600;700;800&family=Archivo+Black&family=Anton&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@500;800&family=Noto+Sans+Devanagari:wght@500;700;800&family=Baloo+Da+2:wght@600;700;800&family=Archivo+Black&family=Anton&display=swap" rel="stylesheet">
 <style>
+  @font-face{
+    font-family:'Poster Bangla';
+    src:url('Unicode/Li Alinur Sangbadpatra2 Unicode.ttf') format('truetype');
+    font-weight:400 800;
+    font-style:normal;
+  }
+  @font-face{
+    font-family:'Poster Hindi';
+    src:url('Ganesh Regular.ttf') format('truetype');
+    font-weight:400 800;
+    font-style:normal;
+  }
   :root{
     --paper:#EDEBE1;
     --ink:#141414;
@@ -74,6 +86,13 @@
   }
   .color-row{ display:flex; gap:10px; }
   .color-row > div{ flex:1; }
+  .check-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .check-row label{
+    display:flex; align-items:center; gap:6px; margin:0; padding:7px 9px;
+    border:2px solid var(--ink); background:#fff; cursor:pointer;
+    text-transform:none; letter-spacing:0; font-size:11px;
+  }
+  .check-row input{ width:auto; margin:0; accent-color:var(--red); }
 
   .seg{ display:flex; gap:8px; }
   .seg button{
@@ -213,8 +232,49 @@
         <input type="text" id="englishText" value="PSYDUCK" maxlength="16">
       </div>
       <div class="control">
-        <label>Bangla accent text</label>
+        <label>Accent script</label>
+        <div class="check-row">
+          <label><input type="checkbox" id="banglaAccent" checked> Bangla</label>
+          <label><input type="checkbox" id="hindiAccent"> Hindi</label>
+        </div>
+        <p class="subhint">Choose one script. Both accent scripts stay opaque over the English title.</p>
+      </div>
+      <div class="control">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="legacyAccent" style="width:auto;">
+          Legacy accent badge
+        </label>
+        <p class="subhint">Use the original filled badge treatment instead of the layered title treatment.</p>
+      </div>
+      <div class="control">
+        <label for="titleAlign">Title and accent alignment</label>
+        <select id="titleAlign">
+          <option value="left">Left</option>
+          <option value="center" selected>Centre</option>
+          <option value="right">Right</option>
+          <option value="justify">Justified</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="accentAlign">Accent alignment</label>
+        <select id="accentAlign">
+          <option value="left">Left</option>
+          <option value="center" selected>Centre</option>
+          <option value="right">Right</option>
+          <option value="justify">Justified</option>
+        </select>
+      </div>
+      <div class="control">
+        <label>Accent size &mdash; <span id="accentSizeVal">76%</span></label>
+        <input type="range" id="accentSize" min="45" max="125" value="76">
+      </div>
+      <div class="control">
+        <label for="banglaText">Bangla accent text</label>
         <input type="text" id="banglaText" value="পুরুপুরু">
+      </div>
+      <div class="control">
+        <label for="hindiText">Hindi accent text</label>
+        <input type="text" id="hindiText" value="पिकाचु">
       </div>
       <div class="control color-row">
         <div>
@@ -230,6 +290,15 @@
         <label>Description (120 words max)</label>
         <textarea id="descText" maxlength="1200">Psyduck is a water-type Pokemon known for the constant headache it suffers from. When the pain becomes too much, it releases mysterious psychic powers it cannot otherwise control, then forgets everything once the headache subsides.</textarea>
         <p class="wordcount" id="wordCount">0 / 120 words</p>
+      </div>
+      <div class="control">
+        <label for="descAlign">Description alignment</label>
+        <select id="descAlign">
+          <option value="left" selected>Left</option>
+          <option value="center">Centre</option>
+          <option value="right">Right</option>
+          <option value="justify">Justified</option>
+        </select>
       </div>
       <div class="control">
         <label for="descFont">Description font</label>
@@ -288,10 +357,19 @@
   const layout1Btn = document.getElementById('layout1');
   const layout2Btn = document.getElementById('layout2');
   const englishTextEl = document.getElementById('englishText');
+  const banglaAccentEl = document.getElementById('banglaAccent');
+  const hindiAccentEl = document.getElementById('hindiAccent');
+  const legacyAccentEl = document.getElementById('legacyAccent');
+  const titleAlignEl = document.getElementById('titleAlign');
+  const accentAlignEl = document.getElementById('accentAlign');
+  const accentSizeEl = document.getElementById('accentSize');
+  const accentSizeVal = document.getElementById('accentSizeVal');
   const banglaTextEl = document.getElementById('banglaText');
+  const hindiTextEl = document.getElementById('hindiText');
   const titleTextColorEl = document.getElementById('titleTextColor');
   const accentTextColorEl = document.getElementById('accentTextColor');
   const descTextEl = document.getElementById('descText');
+  const descAlignEl = document.getElementById('descAlign');
   const descFontEl = document.getElementById('descFont');
   const descColorEl = document.getElementById('descColor');
   const descBoldEl = document.getElementById('descBold');
@@ -316,7 +394,14 @@
     descriptionColor: '#111111',
     descriptionBold: true,
     titleTextColor: '#e7e7e7',
-    accentTextColor: '#f6c50a'
+    accentTextColor: '#f6c50a',
+    accentScript: 'bangla',
+    hindiText: hindiTextEl.value,
+    legacyAccent: false,
+    titleAlign: 'center',
+    accentAlign: 'center',
+    accentSize: 76,
+    descriptionAlign: 'left'
   };
 
   // ---------------- background removal (white -> transparent) ----------------
@@ -571,6 +656,28 @@
     return lines;
   }
 
+  function drawAlignedLines(ctx, lines, x, y, lineHeight, maxWidth, alignment){
+    lines.forEach((line, index) => {
+      const isLastLine = index === lines.length - 1;
+      if (alignment === 'justify' && !isLastLine && line.includes(' ')){
+        const words = line.split(' ');
+        const wordWidth = words.reduce((sum, word) => sum + ctx.measureText(word).width, 0);
+        const gap = (maxWidth - wordWidth) / (words.length - 1);
+        let offset = 0;
+        words.forEach((word) => {
+          ctx.fillText(word, x + offset, y + index * lineHeight);
+          offset += ctx.measureText(word).width + gap;
+        });
+        return;
+      }
+      const lineX = alignment === 'center' ? x + maxWidth / 2
+        : alignment === 'right' ? x + maxWidth : x;
+      ctx.textAlign = alignment === 'center' ? 'center' : alignment === 'right' ? 'right' : 'left';
+      ctx.fillText(line, lineX, y + index * lineHeight);
+    });
+    ctx.textAlign = 'left';
+  }
+
   function limitWords(str, max){
     const words = str.trim().split(/\s+/).filter(Boolean);
     if (words.length <= max) return { text: str, count: words.length, over:false };
@@ -671,10 +778,14 @@
     }, fg.r === 17 && fg.g === 17 && fg.b === 17 ? '#111111' : preferred);
   }
 
-  // Centered title bar + plump overlapping accent badge, shared by both layouts
-  function drawTitleWithAccent(ctx, x0, x1, titleH, englishText, banglaText, colorA, titleTextColor, accentTextColor, maxFs){
+  // Centered title bar with a translucent script accent layered over the title.
+  function drawTitleWithAccent(ctx, x0, x1, titleH, englishText, accentText, accentFont, accentScript, legacyAccent, titleAlignment, accentAlignment, accentScale, colorA, titleTextColor, accentTextColor, maxFs){
     const cx = (x0 + x1) / 2;
     const barW = x1 - x0;
+    const titleX = titleAlignment === 'left' ? x0 + 22 : titleAlignment === 'right' ? x1 - 22 : cx;
+    const titleTextAlign = titleAlignment === 'left' ? 'left' : titleAlignment === 'right' ? 'right' : 'center';
+    const accentX = accentAlignment === 'left' ? x0 + 22 : accentAlignment === 'right' ? x1 - 22 : cx;
+    const accentTextAlign = accentAlignment === 'left' ? 'left' : accentAlignment === 'right' ? 'right' : 'center';
     const titleOutlineColor = readableTextColor(titleTextColor, colorA);
     const accentOutlineColor = readableTextColor(accentTextColor, colorA);
 
@@ -682,7 +793,7 @@
     ctx.fillRect(x0, 0, barW, titleH);
 
     ctx.fillStyle = titleTextColor;
-    ctx.textAlign = 'center';
+    ctx.textAlign = titleTextAlign;
     ctx.textBaseline = 'middle';
     let fs = maxFs;
     ctx.font = fs + 'px Anton, Arial, sans-serif';
@@ -692,33 +803,55 @@
     }
     ctx.strokeStyle = titleOutlineColor;
     ctx.lineWidth = Math.max(2, fs * 0.045);
-    ctx.strokeText(englishText, cx, titleH/2 + 6);
-    ctx.fillText(englishText, cx, titleH/2 + 6);
+    ctx.strokeText(englishText, titleX, titleH/2 + 6);
+    ctx.fillText(englishText, titleX, titleH/2 + 6);
 
-    // plump cheerful accent badge, centered, overlapping the top of the title
-    if (banglaText){
+    if (accentText){
       ctx.save();
-      ctx.textAlign = 'center';
+      ctx.textAlign = accentTextAlign;
       ctx.textBaseline = 'middle';
-      const badgeFs = Math.max(20, Math.min(32, fs * 0.42));
-      ctx.font = '700 ' + badgeFs + 'px "Baloo Da 2", sans-serif';
-      const tw = ctx.measureText(banglaText).width;
-      const padX = 20, padY = 10;
-      const bw = tw + padX*2, bh = badgeFs + padY*2;
-      const bx = cx - bw/2, by = titleH * 0.07;
-      ctx.translate(cx, by + bh/2);
-      ctx.rotate(-0.055);
-      ctx.translate(-cx, -(by + bh/2));
-      roundRectPath(ctx, bx, by, bw, bh, bh*0.5);
-      ctx.fillStyle = colorA;
-      ctx.fill();
-      ctx.lineWidth = 3; ctx.strokeStyle = accentOutlineColor;
-      ctx.stroke();
-      ctx.fillStyle = accentTextColor;
-      ctx.fillText(banglaText, cx, by + bh/2 + 1);
+      let accentFs = Math.max(22, Math.min(120, fs * accentScale / 100));
+      ctx.font = '700 ' + accentFs + 'px ' + accentFont;
+      while (ctx.measureText(accentText).width > (barW - 26) && accentFs > 22){
+        accentFs -= 1;
+        ctx.font = '700 ' + accentFs + 'px ' + accentFont;
+      }
+      if (legacyAccent){
+        const tw = ctx.measureText(accentText).width;
+        const padX = 20, padY = 10;
+        const bw = tw + padX * 2, bh = accentFs + padY * 2;
+        const bx = accentX - (accentTextAlign === 'center' ? bw / 2 : accentTextAlign === 'right' ? bw : 0);
+        const by = titleH * 0.07;
+        roundRectPath(ctx, bx, by, bw, bh, bh * 0.5);
+        ctx.fillStyle = colorA;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = accentOutlineColor;
+        ctx.stroke();
+        ctx.fillStyle = accentTextColor;
+        ctx.globalAlpha = 1;
+        ctx.fillText(accentText, accentX, by + bh / 2 + 1);
+      } else {
+        ctx.translate(accentX, titleH * 0.52);
+        ctx.rotate(-0.055);
+        ctx.translate(-accentX, -titleH * 0.52);
+        ctx.lineWidth = Math.max(2, accentFs * 0.035);
+        ctx.strokeStyle = accentOutlineColor;
+        ctx.globalAlpha = 1;
+        ctx.strokeText(accentText, accentX, titleH * 0.53);
+        ctx.fillStyle = accentTextColor;
+        ctx.globalAlpha = 1;
+        ctx.fillText(accentText, accentX, titleH * 0.53);
+      }
       ctx.restore();
     }
     ctx.textAlign = 'left';
+  }
+
+  function activeAccent(){
+    return state.accentScript === 'hindi'
+      ? { text: state.hindiText, font: '"Noto Sans Devanagari", "Poster Hindi", sans-serif', script: 'hindi' }
+      : { text: state.banglaText, font: '"Poster Bangla", sans-serif', script: 'bangla' };
   }
 
   function renderType1(){
@@ -727,7 +860,8 @@
     const proc = processedSubject();
 
     // title bar spans the FULL width so there's no empty gap over the pokeball column
-    drawTitleWithAccent(ctx, 0, W, titleH, state.englishText, state.banglaText, state.colorA, state.titleTextColor, state.accentTextColor, 92);
+    const accent = activeAccent();
+    drawTitleWithAccent(ctx, 0, W, titleH, state.englishText, accent.text, accent.font, accent.script, state.legacyAccent, state.titleAlign, state.accentAlign, state.accentSize, state.colorA, state.titleTextColor, state.accentTextColor, 92);
 
     // subject fills the left/main area below title
     drawSubjectInBox(proc, 20, titleH + 10, W - rightW - 40, H - titleH - 40, 'center');
@@ -781,9 +915,7 @@
       ctx.textBaseline = 'top';
       const blockH = lines.length * lineHeight;
       const startY = descTop + 8 + Math.max(0, (descH - 16 - blockH) / 2);
-      lines.forEach((line, i) => {
-        ctx.fillText(line, colX + 8, startY + i * lineHeight);
-      });
+      drawAlignedLines(ctx, lines, colX + 8, startY, lineHeight, colW - 16, state.descriptionAlign);
       ctx.restore();
     }
   }
@@ -793,7 +925,8 @@
     const rightW = 96;
 
     // title strip (centered title + centered plump accent badge, same treatment as Type 1)
-    drawTitleWithAccent(ctx, 0, W - rightW, titleH, state.englishText, state.banglaText, state.colorA, state.titleTextColor, state.accentTextColor, 68);
+    const accent = activeAccent();
+    drawTitleWithAccent(ctx, 0, W - rightW, titleH, state.englishText, accent.text, accent.font, accent.script, state.legacyAccent, state.titleAlign, state.accentAlign, state.accentSize, state.colorA, state.titleTextColor, state.accentTextColor, 68);
 
     // right vertical pokeball strip
     ctx.save();
@@ -831,9 +964,7 @@
     ctx.textBaseline = 'top';
     const blockH = lines.length * lineHeight;
     const startY = descY + 8 + Math.max(0, (descH - 16 - blockH) / 2);
-    lines.forEach((line, i) => {
-      ctx.fillText(line, descX + 8, startY + i * lineHeight);
-    });
+    drawAlignedLines(ctx, lines, descX + 8, startY, lineHeight, descW - 16, state.descriptionAlign);
     ctx.restore();
   }
 
@@ -919,6 +1050,35 @@
     state.banglaText = banglaTextEl.value;
     render();
   });
+  hindiTextEl.addEventListener('input', () => {
+    state.hindiText = hindiTextEl.value;
+    render();
+  });
+  function setAccentScript(script){
+    state.accentScript = script;
+    banglaAccentEl.checked = script === 'bangla';
+    hindiAccentEl.checked = script === 'hindi';
+    render();
+  }
+  banglaAccentEl.addEventListener('change', () => setAccentScript('bangla'));
+  hindiAccentEl.addEventListener('change', () => setAccentScript('hindi'));
+  legacyAccentEl.addEventListener('change', () => {
+    state.legacyAccent = legacyAccentEl.checked;
+    render();
+  });
+  titleAlignEl.addEventListener('change', () => {
+    state.titleAlign = titleAlignEl.value;
+    render();
+  });
+  accentAlignEl.addEventListener('change', () => {
+    state.accentAlign = accentAlignEl.value;
+    render();
+  });
+  accentSizeEl.addEventListener('input', () => {
+    state.accentSize = parseInt(accentSizeEl.value, 10);
+    accentSizeVal.textContent = state.accentSize + '%';
+    render();
+  });
   titleTextColorEl.addEventListener('input', () => {
     state.titleTextColor = titleTextColorEl.value;
     render();
@@ -948,6 +1108,10 @@
     render();
   }
   descTextEl.addEventListener('input', refreshDescription);
+  descAlignEl.addEventListener('change', () => {
+    state.descriptionAlign = descAlignEl.value;
+    render();
+  });
 
   downloadBtn.addEventListener('click', () => {
     render();
