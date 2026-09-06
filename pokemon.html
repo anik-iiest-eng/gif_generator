@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poster Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@500;800&family=Baloo+Da+2:wght@600;700;800&family=Archivo+Black&family=Anton&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EDEBE1;
+    --ink:#141414;
+    --red:#DD3319;
+    --line:#141414;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: Arial, Helvetica, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(circle, rgba(20,20,20,0.06) 1px, transparent 1.2px) 0 0/14px 14px,
+      var(--paper);
+    color:var(--ink);
+    font-family:var(--mono);
+    min-height:100vh;
+    padding:28px 16px 60px;
+  }
+  .wrap{ max-width:1200px; margin:0 auto; }
+
+  header{ margin-bottom:22px; }
+  h1{
+    font-family:var(--sans);
+    font-weight:900;
+    font-size:clamp(26px, 5.2vw, 42px);
+    letter-spacing:-1px;
+    text-transform:uppercase;
+    transform:skewX(-6deg);
+    margin:0 0 10px 0;
+    line-height:0.9;
+  }
+  header .rule{ height:4px; background:var(--red); width:120px; margin-bottom:12px; }
+  header p{ margin:0; font-size:13px; max-width:70ch; line-height:1.5; opacity:0.8; }
+
+  .stage{ display:grid; grid-template-columns: 290px 1fr 290px; gap:18px; align-items:start; }
+  @media (max-width:1020px){ .stage{ grid-template-columns:1fr; } }
+
+  .panel{ border:2.5px solid var(--line); background:#fff; padding:14px; }
+  .panel h2{
+    font-family:var(--sans); font-size:12.5px; text-transform:uppercase;
+    letter-spacing:0.5px; margin:0 0 10px 0; font-weight:800;
+    border-bottom:2px solid var(--ink); padding-bottom:7px;
+  }
+
+  .control{ margin-bottom:14px; }
+  .control label{
+    display:block; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:0.4px; margin-bottom:5px; font-weight:700;
+  }
+  .control .subhint{ font-size:10px; opacity:0.55; margin-top:3px; line-height:1.4; }
+  input[type="range"]{ width:100%; accent-color:var(--red); }
+  input[type="text"], textarea, input[type="number"]{
+    width:100%; font-family:var(--mono); font-size:12.5px; padding:7px 8px;
+    border:2px solid var(--ink); background:#fff; color:var(--ink);
+  }
+  select{
+    width:100%; font-family:var(--mono); font-size:12.5px; padding:7px 8px;
+    border:2px solid var(--ink); background:#fff; color:var(--ink);
+  }
+  textarea{ resize:vertical; min-height:80px; }
+  input[type="color"]{
+    width:100%; height:34px; padding:2px; border:2px solid var(--line); background:#fff;
+    cursor:pointer;
+  }
+  .color-row{ display:flex; gap:10px; }
+  .color-row > div{ flex:1; }
+
+  .seg{ display:flex; gap:8px; }
+  .seg button{
+    flex:1; font-family:var(--mono); font-size:11px; padding:8px 4px;
+    border:2px solid var(--ink); background:#fff; cursor:pointer; text-transform:uppercase;
+  }
+  .seg button.active{ background:var(--ink); color:#fff; }
+
+  input[type="file"]{ display:none; }
+  .addBtn{
+    font-family:var(--mono); font-size:12px; background:var(--ink); color:#fff;
+    border:1.5px solid var(--ink); padding:8px 14px; cursor:pointer; width:100%;
+  }
+  .addBtn:hover{ opacity:0.85; }
+
+  .wordcount{ font-size:10.5px; text-align:right; margin-top:4px; opacity:0.6; }
+  .wordcount.over{ color:var(--red); opacity:1; font-weight:700; }
+
+  .preview-col{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+  #posterCanvas{ width:100%; max-width:560px; border:2px solid var(--line); display:block; background:#fff; }
+
+  .primary-btn{
+    width:100%; max-width:560px; display:block; text-align:center; font-family:var(--mono);
+    font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:0.5px;
+    padding:12px 14px; background:var(--red); color:#fff; border:2.5px solid var(--line);
+    cursor:pointer; text-decoration:none; margin-bottom:0;
+    box-shadow:4px 4px 0 var(--ink);
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  .primary-btn:hover{ transform:translate(2px,2px); box-shadow:2px 2px 0 var(--ink); }
+  .hint{ font-size:11px; opacity:0.6; line-height:1.5; margin-top:2px; text-align:center; max-width:560px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Trading Card Poster Maker</h1>
+    <div class="rule"></div>
+    <p>Upload a photo shot on a plain white background &mdash; the white gets knocked out automatically and swapped for a duotone radial or grid backdrop, with the same grunge/halftone treatment applied to your subject. Fill in the title, a Bangla accent line, a short blurb, and pick a layout.</p>
+  </header>
+
+  <div class="stage">
+
+    <!-- LEFT PANEL: photo + subject grunge + duotone palette -->
+    <div class="panel">
+      <h2>Subject Photo</h2>
+      <div class="control">
+        <input type="file" id="fileInput" accept="image/*">
+        <button id="addBtn" class="addBtn" type="button">Upload photo (white bg)</button>
+        <p class="subhint" id="fileStatus">No photo yet.</p>
+      </div>
+
+      <div class="control">
+        <label>Image grunge / halftone &mdash; <span id="imgGrungeVal">0%</span></label>
+        <input type="range" id="imgGrunge" min="0" max="100" value="0">
+        <p class="subhint">0 = smooth duotone. 100 = full dot-screen print halftone.</p>
+      </div>
+
+      <div class="control">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="applyImgGrunge" style="width:auto;">
+          Apply ink/duotone filter to photo
+        </label>
+        <p class="subhint">Untick to keep the uploaded photo in its original colours (background still swapped &amp; grained).</p>
+      </div>
+
+      <div class="control">
+        <label>Photo brightness &mdash; <span id="photoBrightVal">159%</span></label>
+        <input type="range" id="photoBright" min="50" max="200" value="159">
+      </div>
+
+      <div class="control">
+        <label>Overall grain (whole poster) &mdash; <span id="grainAmtVal">38%</span></label>
+        <input type="range" id="grainAmt" min="0" max="100" value="38">
+        <p class="subhint">Heavy print noise over everything &mdash; text, pokeballs, photo, background.</p>
+      </div>
+
+      <h2 style="margin-top:18px;">Duotone Palette</h2>
+      <div class="control color-row">
+        <div>
+          <label>Shadow / Ink</label>
+          <input type="color" id="colorA" value="#151515">
+        </div>
+        <div>
+          <label>Highlight / Base</label>
+          <input type="color" id="colorB" value="#f6c50a">
+        </div>
+      </div>
+      <p class="subhint">Drives the subject duotone, the background pattern, and the pokeballs.</p>
+    </div>
+
+    <!-- CENTER: preview -->
+    <div class="preview-col">
+      <canvas id="posterCanvas" width="800" height="800"></canvas>
+      <button id="downloadBtn" class="primary-btn">Download PNG</button>
+      <p class="hint">Square canvas, 800&times;800px.</p>
+    </div>
+
+    <!-- RIGHT PANEL: background + pokeballs + layout + text -->
+    <div class="panel">
+      <h2>Background</h2>
+      <div class="control">
+        <label>Pattern style</label>
+        <div class="seg">
+          <button type="button" id="bgRadial" class="active">Radial</button>
+          <button type="button" id="bgGrid">Grid</button>
+        </div>
+      </div>
+      <div class="control">
+        <label>Background grunge &mdash; <span id="bgGrungeVal">21%</span></label>
+        <input type="range" id="bgGrunge" min="0" max="100" value="21">
+      </div>
+      <div class="control">
+        <label>Grid spacing &mdash; <span id="gridSpacingVal">50px</span></label>
+        <input type="range" id="gridSpacing" min="8" max="50" value="50">
+        <p class="subhint">Only affects the Grid background style.</p>
+      </div>
+
+      <div class="control">
+        <label>Number of pokeballs &mdash; <span id="ballCountVal">6</span></label>
+        <input type="range" id="ballCount" min="0" max="6" value="6">
+      </div>
+
+      <div class="control">
+        <label>Layout</label>
+        <div class="seg">
+          <button type="button" id="layout1" class="active">Type 1</button>
+          <button type="button" id="layout2">Type 2</button>
+        </div>
+        <p class="subhint">Type 1: title bar on top, pokeball column + blurb box on the right. Type 2: title inline with the accent text, pokeballs run down the full right edge.</p>
+      </div>
+
+      <h2 style="margin-top:18px;">Text</h2>
+      <div class="control">
+        <label>English title</label>
+        <input type="text" id="englishText" value="PSYDUCK" maxlength="16">
+      </div>
+      <div class="control">
+        <label>Bangla accent text</label>
+        <input type="text" id="banglaText" value="পুরুপুরু">
+      </div>
+      <div class="control color-row">
+        <div>
+          <label for="titleTextColor">Main title colour</label>
+          <input type="color" id="titleTextColor" value="#e7e7e7">
+        </div>
+        <div>
+          <label for="accentTextColor">Accent colour</label>
+          <input type="color" id="accentTextColor" value="#f6c50a">
+        </div>
+      </div>
+      <div class="control">
+        <label>Description (120 words max)</label>
+        <textarea id="descText" maxlength="1200">Psyduck is a water-type Pokemon known for the constant headache it suffers from. When the pain becomes too much, it releases mysterious psychic powers it cannot otherwise control, then forgets everything once the headache subsides.</textarea>
+        <p class="wordcount" id="wordCount">0 / 120 words</p>
+      </div>
+      <div class="control">
+        <label for="descFont">Description font</label>
+        <select id="descFont">
+          <option value="Arial">Arial</option>
+          <option value="Georgia">Georgia</option>
+          <option value="'Times New Roman'">Times New Roman</option>
+          <option value="'Courier New'" selected>Courier New</option>
+          <option value="Verdana">Verdana</option>
+          <option value="'Trebuchet MS'">Trebuchet MS</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="descColor">Description text colour</label>
+          <input type="color" id="descColor" value="#111111">
+      </div>
+      <div class="control">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="descBold" checked style="width:auto;">
+          Bold description text
+        </label>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('posterCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const fileInput = document.getElementById('fileInput');
+  const addBtn = document.getElementById('addBtn');
+  const fileStatus = document.getElementById('fileStatus');
+
+  const imgGrungeEl = document.getElementById('imgGrunge');
+  const imgGrungeVal = document.getElementById('imgGrungeVal');
+  const applyImgGrungeEl = document.getElementById('applyImgGrunge');
+  const photoBrightEl = document.getElementById('photoBright');
+  const photoBrightVal = document.getElementById('photoBrightVal');
+  const grainAmtEl = document.getElementById('grainAmt');
+  const grainAmtVal = document.getElementById('grainAmtVal');
+  const bgGrungeEl = document.getElementById('bgGrunge');
+  const bgGrungeVal = document.getElementById('bgGrungeVal');
+  const gridSpacingEl = document.getElementById('gridSpacing');
+  const gridSpacingVal = document.getElementById('gridSpacingVal');
+  const colorAEl = document.getElementById('colorA');
+  const colorBEl = document.getElementById('colorB');
+  const ballCountEl = document.getElementById('ballCount');
+  const ballCountVal = document.getElementById('ballCountVal');
+  const bgRadialBtn = document.getElementById('bgRadial');
+  const bgGridBtn = document.getElementById('bgGrid');
+  const layout1Btn = document.getElementById('layout1');
+  const layout2Btn = document.getElementById('layout2');
+  const englishTextEl = document.getElementById('englishText');
+  const banglaTextEl = document.getElementById('banglaText');
+  const titleTextColorEl = document.getElementById('titleTextColor');
+  const accentTextColorEl = document.getElementById('accentTextColor');
+  const descTextEl = document.getElementById('descText');
+  const descFontEl = document.getElementById('descFont');
+  const descColorEl = document.getElementById('descColor');
+  const descBoldEl = document.getElementById('descBold');
+  const wordCountEl = document.getElementById('wordCount');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  const state = {
+    rawImg: null,
+    cutoutCanvas: null, // background-removed, still full color
+    bgStyle: 'radial',
+    layout: 'type1',
+    imgGrunge: 0,
+    applyImgGrunge: false,
+    photoBrightness: 159,
+    grainAmt: 38,
+    bgGrunge: 21,
+    gridSpacing: 50,
+    colorA: '#151515',
+    colorB: '#f6c50a',
+    ballCount: 6,
+    descriptionFont: "'Courier New'",
+    descriptionColor: '#111111',
+    descriptionBold: true,
+    titleTextColor: '#e7e7e7',
+    accentTextColor: '#f6c50a'
+  };
+
+  // ---------------- background removal (white -> transparent) ----------------
+  function removeWhiteBackground(img){
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const cctx = c.getContext('2d');
+    cctx.drawImage(img, 0, 0);
+    const data = cctx.getImageData(0, 0, c.width, c.height);
+    const d = data.data;
+    for (let i = 0; i < d.length; i += 4){
+      const r = d[i], g = d[i+1], b = d[i+2];
+      const maxc = Math.max(r,g,b), minc = Math.min(r,g,b);
+      const lum = (r+g+b)/3;
+      const sat = maxc - minc;
+      // near-white & low-saturation => background
+      if (lum > 235 && sat < 22){
+        d[i+3] = 0;
+      } else if (lum > 200 && sat < 25){
+        // feather edge
+        const t = (lum - 200) / (235 - 200);
+        d[i+3] = Math.round(d[i+3] * (1 - t));
+      }
+    }
+    cctx.putImageData(data, 0, 0);
+    return trimTransparent(c);
+  }
+
+  function trimTransparent(c){
+    const cctx = c.getContext('2d');
+    const data = cctx.getImageData(0, 0, c.width, c.height).data;
+    let minX = c.width, minY = c.height, maxX = 0, maxY = 0;
+    for (let y = 0; y < c.height; y += 2){
+      for (let x = 0; x < c.width; x += 2){
+        const a = data[(y*c.width+x)*4+3];
+        if (a > 20){
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX <= minX || maxY <= minY) return c;
+    const pad = 4;
+    minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+    maxX = Math.min(c.width, maxX + pad); maxY = Math.min(c.height, maxY + pad);
+    const out = document.createElement('canvas');
+    out.width = maxX - minX; out.height = maxY - minY;
+    out.getContext('2d').drawImage(c, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
+    return out;
+  }
+
+  // ---------------- duotone + ordered-dither halftone ----------------
+  const BAYER8 = [
+    [0,32,8,40,2,34,10,42],[48,16,56,24,50,18,58,26],[12,44,4,36,14,46,6,38],
+    [60,28,52,20,62,30,54,22],[3,35,11,43,1,33,9,41],[51,19,59,27,49,17,57,25],
+    [15,47,7,39,13,45,5,37],[63,31,55,23,61,29,53,21]
+  ];
+  function hexToRgb(hex){
+    const v = parseInt(hex.slice(1), 16);
+    return { r:(v>>16)&255, g:(v>>8)&255, b:v&255 };
+  }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  function applyDuotoneHalftone(srcCanvas, colorA, colorB, grungeAmt, brightPct){
+    const w = srcCanvas.width, h = srcCanvas.height;
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    const octx = out.getContext('2d');
+    octx.drawImage(srcCanvas, 0, 0);
+    const imgData = octx.getImageData(0, 0, w, h);
+    const d = imgData.data;
+    const A = hexToRgb(colorA), B = hexToRgb(colorB);
+    const ditherAmt = grungeAmt / 100; // 0 = smooth duotone, 1 = full dither
+    const brightMul = (brightPct || 100) / 100;
+    for (let y = 0; y < h; y++){
+      for (let x = 0; x < w; x++){
+        const i = (y*w+x)*4;
+        const alpha = d[i+3];
+        if (alpha < 5) continue;
+        let gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+        // brightness adjust happens before contrast/dither so it actually shifts the tone
+        gray = gray * brightMul;
+        // mild contrast push
+        gray = (gray - 128) * 1.15 + 128;
+        gray = Math.max(0, Math.min(255, gray));
+        const bayerVal = BAYER8[y % 8][x % 8] / 63 * 255;
+        const smoothT = gray / 255;
+        const ditherT = gray > bayerVal ? 1 : 0;
+        const t = lerp(smoothT, ditherT, ditherAmt);
+        // add grain scaled with grunge
+        const grain = (Math.random() - 0.5) * ditherAmt * 30;
+        const tt = Math.max(0, Math.min(1, t + grain/255));
+        d[i]   = lerp(A.r, B.r, tt);
+        d[i+1] = lerp(A.g, B.g, tt);
+        d[i+2] = lerp(A.b, B.b, tt);
+      }
+    }
+    octx.putImageData(imgData, 0, 0);
+    return out;
+  }
+
+  function brightenRaw(srcCanvas, brightPct){
+    const w = srcCanvas.width, h = srcCanvas.height;
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    const octx = out.getContext('2d');
+    octx.filter = 'brightness(' + (brightPct || 100) + '%)';
+    octx.drawImage(srcCanvas, 0, 0);
+    octx.filter = 'none';
+    return out;
+  }
+
+  // ---------------- background pattern ----------------
+  function drawBackgroundPattern(ctx, style, colorA, colorB, grunge, gridSpacing){
+    ctx.save();
+    ctx.fillStyle = colorB;
+    ctx.fillRect(0, 0, W, H);
+    if (style === 'radial'){
+      const cx = W*0.5, cy = H*0.55, rays = 28, maxR = Math.hypot(W,H);
+      ctx.save();
+      ctx.translate(cx, cy);
+      for (let i = 0; i < rays; i++){
+        ctx.fillStyle = (i % 2 === 0) ? colorA : colorB;
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        const a0 = (Math.PI*2/rays) * i;
+        const a1 = (Math.PI*2/rays) * (i+1);
+        ctx.arc(0,0,maxR, a0, a1);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    } else {
+      // grid style
+      ctx.fillStyle = colorA;
+      const cell = gridSpacing || 16;
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = colorA;
+      for (let x = 0; x <= W; x += cell){
+        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+      }
+      for (let y = 0; y <= H; y += cell){
+        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    // grunge overlay: halftone dot speckle + noise, opacity tied to meter
+    const amt = grunge / 100;
+    if (amt > 0.01){
+      const dotCanvas = document.createElement('canvas');
+      dotCanvas.width = W; dotCanvas.height = H;
+      const dctx = dotCanvas.getContext('2d');
+      const spacing = 9;
+      for (let y = 0; y < H; y += spacing){
+        for (let x = 0; x < W; x += spacing){
+          if (Math.random() > 0.5) continue;
+          const r = Math.random() * 1.6 * amt;
+          if (r < 0.15) continue;
+          dctx.fillStyle = Math.random() > 0.5 ? colorA : colorB;
+          dctx.globalAlpha = 0.35 * amt + Math.random()*0.15;
+          dctx.beginPath();
+          dctx.arc(x + Math.random()*spacing, y + Math.random()*spacing, r, 0, Math.PI*2);
+          dctx.fill();
+        }
+      }
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = 0.85;
+      ctx.drawImage(dotCanvas, 0, 0);
+      ctx.restore();
+    }
+
+    // corner stars decoration
+    drawStar(ctx, 40, 40, 12, colorA);
+    drawStar(ctx, W-46, 60, 9, colorA);
+    drawStar(ctx, 60, H-50, 8, colorA);
+  }
+
+  function drawStar(ctx, cx, cy, r, color){
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++){
+      const ang = (Math.PI/4) * i;
+      const rad = (i % 2 === 0) ? r : r*0.4;
+      const px = Math.cos(ang) * rad, py = Math.sin(ang) * rad;
+      if (i === 0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------------- pokeball glyph ----------------
+  function drawPokeball(ctx, cx, cy, r, colorA, colorB){
+    ctx.save();
+    ctx.translate(cx, cy);
+    // outer ring
+    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fillStyle = '#111'; ctx.fill();
+    const inner = r - r*0.12;
+    // top half colorA
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0,0,inner,Math.PI,Math.PI*2); ctx.closePath();
+    ctx.fillStyle = colorA; ctx.fill();
+    ctx.restore();
+    // bottom half colorB
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0,0,inner,0,Math.PI); ctx.closePath();
+    ctx.fillStyle = colorB; ctx.fill();
+    ctx.restore();
+    // center band
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-inner, -r*0.09, inner*2, r*0.18);
+    // center circle
+    ctx.beginPath(); ctx.arc(0,0,r*0.28,0,Math.PI*2); ctx.fillStyle = '#111'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,r*0.17,0,Math.PI*2); ctx.fillStyle = colorB; ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------------- auto-fit wrapped text ----------------
+  function fitWrappedText(ctx, text, maxWidth, maxHeight, startSize, minSize, fontFamily, weight){
+    let size = startSize;
+    let lines = [];
+    while (size >= minSize){
+      ctx.font = (weight ? weight+' ' : '') + size + 'px ' + fontFamily;
+      lines = wrapText(ctx, text, maxWidth);
+      const lineHeight = size * 1.32;
+      if (lines.length * lineHeight <= maxHeight) break;
+      size -= 1;
+    }
+    return { size, lines, lineHeight: size * 1.32 };
+  }
+  function wrapText(ctx, text, maxWidth){
+    const words = text.split(/\s+/);
+    const lines = [];
+    let cur = '';
+    words.forEach(w => {
+      const test = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(test).width > maxWidth && cur){
+        lines.push(cur);
+        cur = w;
+      } else {
+        cur = test;
+      }
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  function limitWords(str, max){
+    const words = str.trim().split(/\s+/).filter(Boolean);
+    if (words.length <= max) return { text: str, count: words.length, over:false };
+    return { text: words.slice(0, max).join(' '), count: words.length, over:true };
+  }
+
+  // ---------------- global grain post-process (hits text, pokeballs, photo, bg) ----------------
+  function applyGlobalGrain(ctx, amount){
+    const amt = amount / 100;
+    if (amt <= 0.01) return;
+    const imgData = ctx.getImageData(0, 0, W, H);
+    const d = imgData.data;
+    const strength = 10 + amt * 130; // up to +-140 noise at 100%
+    const speckleChance = 0.10 + amt * 0.35; // chance a pixel gets a harsh ink speckle
+    for (let i = 0; i < d.length; i += 4){
+      // base random noise on every pixel
+      const n = (Math.random() - 0.5) * strength;
+      d[i]   = Math.max(0, Math.min(255, d[i]   + n));
+      d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
+      d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
+      // occasional harsh dark/light ink speckle for that dirty print look
+      if (Math.random() < speckleChance * 0.08){
+        const speck = Math.random() < 0.5 ? -1 : 1;
+        const spekStrength = speck * (60 + Math.random()*90) * amt;
+        d[i]   = Math.max(0, Math.min(255, d[i]   + spekStrength));
+        d[i+1] = Math.max(0, Math.min(255, d[i+1] + spekStrength));
+        d[i+2] = Math.max(0, Math.min(255, d[i+2] + spekStrength));
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  // ---------------- main render ----------------
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    drawBackgroundPattern(ctx, state.bgStyle, state.colorA, state.colorB, state.bgGrunge, state.gridSpacing);
+
+    if (state.layout === 'type1') renderType1();
+    else renderType2();
+
+    // heavy overall grain pass across the whole poster, including text & pokeballs
+    applyGlobalGrain(ctx, state.grainAmt);
+
+    // outer frame drawn last so it stays crisp
+    ctx.save();
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(5,5,W-10,H-10);
+    ctx.restore();
+  }
+
+  function processedSubject(){
+    if (!state.cutoutCanvas) return null;
+    if (!state.applyImgGrunge){
+      return brightenRaw(state.cutoutCanvas, state.photoBrightness);
+    }
+    return applyDuotoneHalftone(state.cutoutCanvas, state.colorA, state.colorB, state.imgGrunge, state.photoBrightness);
+  }
+
+  function drawSubjectInBox(proc, bx, by, bw, bh, align){
+    if (!proc) return;
+    const ratio = proc.width / proc.height;
+    let dw = bw, dh = bw / ratio;
+    if (dh > bh){ dh = bh; dw = bh * ratio; }
+    const dx = bx + (align === 'left' ? 0 : (bw - dw)/2);
+    const dy = by + bh - dh; // sit on the bottom of the box
+    ctx.drawImage(proc, dx, dy, dw, dh);
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function readableTextColor(background, preferred){
+    const bg = hexToRgb(background);
+    const fg = hexToRgb(preferred);
+    const luminance = (rgb) => {
+      const channels = [rgb.r, rgb.g, rgb.b].map((channel) => {
+        const value = channel / 255;
+        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const contrast = (first, second) => {
+      const lighter = Math.max(luminance(first), luminance(second));
+      const darker = Math.min(luminance(first), luminance(second));
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+    const candidates = [preferred, '#111111', '#ffffff'];
+    return candidates.reduce((best, candidate) => {
+      return contrast(bg, hexToRgb(candidate)) > contrast(bg, hexToRgb(best)) ? candidate : best;
+    }, fg.r === 17 && fg.g === 17 && fg.b === 17 ? '#111111' : preferred);
+  }
+
+  // Centered title bar + plump overlapping accent badge, shared by both layouts
+  function drawTitleWithAccent(ctx, x0, x1, titleH, englishText, banglaText, colorA, titleTextColor, accentTextColor, maxFs){
+    const cx = (x0 + x1) / 2;
+    const barW = x1 - x0;
+    const titleOutlineColor = readableTextColor(titleTextColor, colorA);
+    const accentOutlineColor = readableTextColor(accentTextColor, colorA);
+
+    ctx.fillStyle = colorA;
+    ctx.fillRect(x0, 0, barW, titleH);
+
+    ctx.fillStyle = titleTextColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let fs = maxFs;
+    ctx.font = fs + 'px Anton, Arial, sans-serif';
+    while (ctx.measureText(englishText).width > (barW - 44) && fs > 20){
+      fs -= 2;
+      ctx.font = fs + 'px Anton, Arial, sans-serif';
+    }
+    ctx.strokeStyle = titleOutlineColor;
+    ctx.lineWidth = Math.max(2, fs * 0.045);
+    ctx.strokeText(englishText, cx, titleH/2 + 6);
+    ctx.fillText(englishText, cx, titleH/2 + 6);
+
+    // plump cheerful accent badge, centered, overlapping the top of the title
+    if (banglaText){
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const badgeFs = Math.max(20, Math.min(32, fs * 0.42));
+      ctx.font = '700 ' + badgeFs + 'px "Baloo Da 2", sans-serif';
+      const tw = ctx.measureText(banglaText).width;
+      const padX = 20, padY = 10;
+      const bw = tw + padX*2, bh = badgeFs + padY*2;
+      const bx = cx - bw/2, by = titleH * 0.07;
+      ctx.translate(cx, by + bh/2);
+      ctx.rotate(-0.055);
+      ctx.translate(-cx, -(by + bh/2));
+      roundRectPath(ctx, bx, by, bw, bh, bh*0.5);
+      ctx.fillStyle = colorA;
+      ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = accentOutlineColor;
+      ctx.stroke();
+      ctx.fillStyle = accentTextColor;
+      ctx.fillText(banglaText, cx, by + bh/2 + 1);
+      ctx.restore();
+    }
+    ctx.textAlign = 'left';
+  }
+
+  function renderType1(){
+    const titleH = 132;
+    const rightW = 230;
+    const proc = processedSubject();
+
+    // title bar spans the FULL width so there's no empty gap over the pokeball column
+    drawTitleWithAccent(ctx, 0, W, titleH, state.englishText, state.banglaText, state.colorA, state.titleTextColor, state.accentTextColor, 92);
+
+    // subject fills the left/main area below title
+    drawSubjectInBox(proc, 20, titleH + 10, W - rightW - 40, H - titleH - 40, 'center');
+
+    // right column
+    const colX = W - rightW + 14;
+    const colW = rightW - 28;
+    ctx.save();
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 4;
+    ctx.strokeRect(colX - 4, titleH + 6, colW + 8, H - titleH - 20);
+    ctx.restore();
+
+    // pokeball cells
+    const n = state.ballCount;
+    if (n > 0){
+      const cellsAreaTop = titleH + 16;
+      const cellH = Math.min(150, (H - titleH - 40) * 0.55 / n);
+      for (let i = 0; i < n; i++){
+        const cy0 = cellsAreaTop + i * (cellH + 8);
+        // grid-textured cell bg
+        ctx.save();
+        ctx.fillStyle = state.colorB;
+        ctx.fillRect(colX, cy0, colW, cellH);
+        ctx.strokeStyle = state.colorA; ctx.lineWidth = 1;
+        for (let gx = 0; gx <= colW; gx += 14){
+          ctx.beginPath(); ctx.moveTo(colX+gx, cy0); ctx.lineTo(colX+gx, cy0+cellH); ctx.stroke();
+        }
+        for (let gy = 0; gy <= cellH; gy += 14){
+          ctx.beginPath(); ctx.moveTo(colX, cy0+gy); ctx.lineTo(colX+colW, cy0+gy); ctx.stroke();
+        }
+        ctx.strokeStyle = '#111'; ctx.lineWidth = 3;
+        ctx.strokeRect(colX, cy0, colW, cellH);
+        ctx.restore();
+        drawPokeball(ctx, colX + colW/2, cy0 + cellH/2, Math.min(colW, cellH) * 0.32, state.colorA, state.colorB);
+      }
+    }
+
+    // description box at bottom of right column
+    const descTop = titleH + 16 + (n > 0 ? (Math.min(150, (H - titleH - 40) * 0.55 / n) + 8) * n + 10 : 0);
+    const descH = (titleH + 6 + (H - titleH - 20)) - descTop - 10;
+    if (descH > 40){
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(colX, descTop, colW, descH);
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+      ctx.strokeRect(colX, descTop, colW, descH);
+      ctx.fillStyle = state.descriptionColor;
+      const descriptionWeight = state.descriptionBold ? '700' : null;
+      const { size, lines, lineHeight } = fitWrappedText(ctx, state.description, colW - 16, descH - 16, 32, 8, state.descriptionFont, descriptionWeight);
+      ctx.font = (descriptionWeight ? descriptionWeight + ' ' : '') + size + 'px ' + state.descriptionFont;
+      ctx.textBaseline = 'top';
+      const blockH = lines.length * lineHeight;
+      const startY = descTop + 8 + Math.max(0, (descH - 16 - blockH) / 2);
+      lines.forEach((line, i) => {
+        ctx.fillText(line, colX + 8, startY + i * lineHeight);
+      });
+      ctx.restore();
+    }
+  }
+
+  function renderType2(){
+    const titleH = 96;
+    const rightW = 96;
+
+    // title strip (centered title + centered plump accent badge, same treatment as Type 1)
+    drawTitleWithAccent(ctx, 0, W - rightW, titleH, state.englishText, state.banglaText, state.colorA, state.titleTextColor, state.accentTextColor, 68);
+
+    // right vertical pokeball strip
+    ctx.save();
+    ctx.fillStyle = '#111';
+    ctx.fillRect(W - rightW, 0, rightW, H);
+    ctx.restore();
+    const n = state.ballCount;
+    if (n > 0){
+      const cellH = H / n;
+      for (let i = 0; i < n; i++){
+        const cy0 = i * cellH;
+        ctx.strokeStyle = state.colorB; ctx.lineWidth = 2;
+        ctx.strokeRect(W - rightW, cy0, rightW, cellH);
+        drawPokeball(ctx, W - rightW/2, cy0 + cellH/2, Math.min(rightW, cellH) * 0.36, state.colorA, state.colorB);
+      }
+    }
+
+    // main content area: subject + description
+    const proc = processedSubject();
+    drawSubjectInBox(proc, 20, titleH + 16, W - rightW - 40, H - titleH - 40, 'center');
+
+    // description box, bottom-left small panel
+    const descW = (W - rightW) * 0.42;
+    const descH = 150;
+    const descX = 20, descY = H - descH - 20;
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillRect(descX, descY, descW, descH);
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+    ctx.strokeRect(descX, descY, descW, descH);
+    ctx.fillStyle = state.descriptionColor;
+    const descriptionWeight = state.descriptionBold ? '700' : null;
+    const { size, lines, lineHeight } = fitWrappedText(ctx, state.description, descW - 16, descH - 16, 26, 8, state.descriptionFont, descriptionWeight);
+    ctx.font = (descriptionWeight ? descriptionWeight + ' ' : '') + size + 'px ' + state.descriptionFont;
+    ctx.textBaseline = 'top';
+    const blockH = lines.length * lineHeight;
+    const startY = descY + 8 + Math.max(0, (descH - 16 - blockH) / 2);
+    lines.forEach((line, i) => {
+      ctx.fillText(line, descX + 8, startY + i * lineHeight);
+    });
+    ctx.restore();
+  }
+
+  // ---------------- wiring ----------------
+  addBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        state.rawImg = img;
+        state.cutoutCanvas = removeWhiteBackground(img);
+        fileStatus.textContent = 'Loaded: ' + file.name;
+        render();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  imgGrungeEl.addEventListener('input', () => {
+    state.imgGrunge = parseInt(imgGrungeEl.value, 10);
+    imgGrungeVal.textContent = state.imgGrunge + '%';
+    render();
+  });
+  applyImgGrungeEl.addEventListener('change', () => {
+    state.applyImgGrunge = applyImgGrungeEl.checked;
+    render();
+  });
+  photoBrightEl.addEventListener('input', () => {
+    state.photoBrightness = parseInt(photoBrightEl.value, 10);
+    photoBrightVal.textContent = state.photoBrightness + '%';
+    render();
+  });
+  bgGrungeEl.addEventListener('input', () => {
+    state.bgGrunge = parseInt(bgGrungeEl.value, 10);
+    bgGrungeVal.textContent = state.bgGrunge + '%';
+    render();
+  });
+  gridSpacingEl.addEventListener('input', () => {
+    state.gridSpacing = parseInt(gridSpacingEl.value, 10);
+    gridSpacingVal.textContent = state.gridSpacing + 'px';
+    render();
+  });
+  grainAmtEl.addEventListener('input', () => {
+    state.grainAmt = parseInt(grainAmtEl.value, 10);
+    grainAmtVal.textContent = state.grainAmt + '%';
+    render();
+  });
+  colorAEl.addEventListener('input', () => { state.colorA = colorAEl.value; render(); });
+  colorBEl.addEventListener('input', () => { state.colorB = colorBEl.value; render(); });
+  ballCountEl.addEventListener('input', () => {
+    state.ballCount = parseInt(ballCountEl.value, 10);
+    ballCountVal.textContent = state.ballCount;
+    render();
+  });
+
+  function setBgStyle(style){
+    state.bgStyle = style;
+    bgRadialBtn.classList.toggle('active', style === 'radial');
+    bgGridBtn.classList.toggle('active', style === 'grid');
+    render();
+  }
+  bgRadialBtn.addEventListener('click', () => setBgStyle('radial'));
+  bgGridBtn.addEventListener('click', () => setBgStyle('grid'));
+
+  function setLayout(l){
+    state.layout = l;
+    layout1Btn.classList.toggle('active', l === 'type1');
+    layout2Btn.classList.toggle('active', l === 'type2');
+    render();
+  }
+  layout1Btn.addEventListener('click', () => setLayout('type1'));
+  layout2Btn.addEventListener('click', () => setLayout('type2'));
+
+  englishTextEl.addEventListener('input', () => {
+    state.englishText = englishTextEl.value.toUpperCase();
+    render();
+  });
+  banglaTextEl.addEventListener('input', () => {
+    state.banglaText = banglaTextEl.value;
+    render();
+  });
+  titleTextColorEl.addEventListener('input', () => {
+    state.titleTextColor = titleTextColorEl.value;
+    render();
+  });
+  accentTextColorEl.addEventListener('input', () => {
+    state.accentTextColor = accentTextColorEl.value;
+    render();
+  });
+  descFontEl.addEventListener('change', () => {
+    state.descriptionFont = descFontEl.value;
+    render();
+  });
+  descColorEl.addEventListener('input', () => {
+    state.descriptionColor = descColorEl.value;
+    render();
+  });
+  descBoldEl.addEventListener('change', () => {
+    state.descriptionBold = descBoldEl.checked;
+    render();
+  });
+
+  function refreshDescription(){
+    const { text, count, over } = limitWords(descTextEl.value, 120);
+    state.description = text;
+    wordCountEl.textContent = Math.min(count,120) + ' / 120 words';
+    wordCountEl.classList.toggle('over', over);
+    render();
+  }
+  descTextEl.addEventListener('input', refreshDescription);
+
+  downloadBtn.addEventListener('click', () => {
+    render();
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = 'poster.png';
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  });
+
+  // init
+  state.description = limitWords(descTextEl.value, 120).text;
+  if (document.fonts && document.fonts.ready){
+    document.fonts.ready.then(render);
+  }
+  refreshDescription();
+  render();
+})();
+</script>
+</body>
+</html>
