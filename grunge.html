@@ -6,7 +6,7 @@
 <title>Batch Poster Maker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Permanent+Marker&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Permanent+Marker&family=Playfair+Display:wght@400;500;600;700&family=Roboto+Slab:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --paper:#EDEBE1;
@@ -319,6 +319,19 @@
             <option value="front">On top of photo</option>
           </select>
         </div>
+        <div class="control">
+          <label for="textFont">Font</label>
+          <select id="textFont">
+            <option value="Anton" selected>Anton</option>
+            <option value="Bebas Neue">Bebas Neue</option>
+            <option value="Oswald">Oswald</option>
+            <option value="Montserrat">Montserrat</option>
+            <option value="Roboto Slab">Roboto Slab</option>
+            <option value="Playfair Display">Playfair Display</option>
+            <option value="Space Mono">Space Mono</option>
+            <option value="Arial Black">Arial Black</option>
+          </select>
+        </div>
         <div class="control color-row">
           <div>
             <label for="textColor">Text colour</label>
@@ -336,6 +349,11 @@
         <div class="control">
           <label>Text size &mdash; <span id="textSizeVal">38px</span></label>
           <input type="range" id="textSize" min="20" max="64" value="38">
+        </div>
+        <div class="control">
+          <label>Text vertical position &mdash; <span id="textPanYVal">0px</span></label>
+          <input type="range" id="textPanY" min="-180" max="180" value="0">
+          <p class="subhint">Move the whole text block up or down relative to the photo.</p>
         </div>
         <div class="control">
           <label for="funLine">Fun line (bottom right)</label>
@@ -397,9 +415,11 @@
     dept: 'COMPUTER SCIENCE',
     role: 'CORE MEMBER',
     textLayer: 'behind',
+    textFont: 'Anton',
     textColor: '#f4ecdd',
     textAlign: 'left',
     textSize: 38,
+    textPanY: 0,
     funLine: '/ SEE YOU ON THE OTHER SIDE',
     funLineColor: '#141414'
   };
@@ -699,12 +719,12 @@
       : state.textAlign === 'right' ? W - MARGIN - 8
       : W/2;
     ctx.save();
-    ctx.font = '400 ' + state.textSize + 'px Anton, ' + '"Arial Black", sans-serif';
+    ctx.font = '400 ' + state.textSize + 'px "' + state.textFont + '", "Arial Black", sans-serif';
     ctx.textAlign = state.textAlign === 'left' ? 'left' : state.textAlign === 'right' ? 'right' : 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = state.textColor;
     lines.forEach((line, i) => {
-      ctx.fillText(line.toUpperCase(), alignX, TEXT_TOP + i * lineHeight);
+      ctx.fillText(line.toUpperCase(), alignX, TEXT_TOP + state.textPanY + i * lineHeight);
     });
     ctx.restore();
   }
@@ -903,9 +923,11 @@
   roleCustomText.addEventListener('input', (e) => { state.roleCustom = e.target.value; render(); });
 
   document.getElementById('textLayer').addEventListener('change', (e) => { state.textLayer = e.target.value; render(); });
+  document.getElementById('textFont').addEventListener('change', (e) => { state.textFont = e.target.value; render(); });
   document.getElementById('textColor').addEventListener('input', (e) => { state.textColor = e.target.value; render(); });
   document.getElementById('textAlign').addEventListener('change', (e) => { state.textAlign = e.target.value; render(); });
   bindRange('textSize', v => { state.textSize = v; }, v => v + 'px');
+  bindRange('textPanY', v => { state.textPanY = v; }, v => v + 'px');
 
   document.getElementById('funLine').addEventListener('input', (e) => { state.funLine = e.target.value; render(); });
   document.getElementById('funLineColor').addEventListener('input', (e) => { state.funLineColor = e.target.value; render(); });
