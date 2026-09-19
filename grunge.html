@@ -663,7 +663,12 @@
       ctx.fillRect(fx, fy, fw, fh);
       ctx.shadowColor = 'transparent';
       const pad = 20;
-      drawImageCover(ctx, proc, fx+pad, fy+pad, fw-pad*2, fh-pad*2-6, state.subjectZoom, 0, (state.subjectPanY||0) * 2.2);
+      // Subject position is a direct vertical translation, independent of crop slack.
+      const panY = (state.subjectPanY || 0) * 5;
+      ctx.save();
+      ctx.translate(0, panY);
+      drawImageCover(ctx, proc, fx+pad, fy+pad, fw-pad*2, fh-pad*2-6, state.subjectZoom, 0, 0);
+      ctx.restore();
       ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5;
       ctx.strokeRect(fx, fy, fw, fh);
       ctx.restore();
@@ -700,12 +705,11 @@
     }
     hctx.drawImage(off, 0, 0);
 
-    // Use a direct positional offset rather than leftover-space slack.
-    // This keeps the vertical pan useful even when the cutout nearly fills the frame.
-    const maxPan = bh * 0.42;
-    const panOffset = ((state.subjectPanY||0) / 100) * maxPan;
+    // Direct vertical translation. The slider now moves the whole cutout itself,
+    // rather than depending on leftover crop space. Default value 0 preserves layout.
+    const panY = (state.subjectPanY || 0) * 5;
     const dx = bx + (bw-dw)/2 - pad;
-    const dy = by + bh - dh - pad - 8 - panOffset;
+    const dy = by + bh - dh - pad - 8 - panY;
     ctx.drawImage(halo, dx, dy);
   }
 
