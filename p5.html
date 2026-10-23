@@ -145,7 +145,7 @@
 
     .multi-toolbar label { font-size: 11px; font-weight: 700; }
 
-    .multi-button, .variant-card button, .multi-toolbar input[type="file"] + label {
+    .multi-button, .variant-card button {
       min-height: 28px;
       padding: 5px 9px;
       border: 2px solid;
@@ -165,8 +165,6 @@
       background: var(--navy);
     }
 
-    #multiPhotoInput { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-
     .multi-status { min-width: 0; flex: 1 1 220px; font-size: 11px; }
 
     #variantList {
@@ -182,7 +180,7 @@
     .variant-card {
       display: grid;
       flex: 0 0 auto;
-      grid-template-columns: minmax(120px, 1fr) minmax(160px, 1.5fr) minmax(150px, 1.2fr) 76px 76px minmax(120px, .8fr) auto;
+      grid-template-columns: minmax(150px, 1.2fr) minmax(120px, 1fr) minmax(150px, 1.2fr) 76px 76px minmax(80px, .7fr) minmax(120px, .9fr) auto;
       align-items: end;
       gap: 7px;
       padding: 8px;
@@ -192,7 +190,7 @@
     }
 
     .variant-card label { display: block; margin-bottom: 3px; font-size: 10px; font-weight: 700; }
-    .variant-card input[type="text"], .variant-card textarea, .variant-card select {
+    .variant-card input[type="text"], .variant-card select {
       width: 100%;
       min-width: 0;
       min-height: 28px;
@@ -203,7 +201,7 @@
       font: 12px var(--mono);
     }
 
-    .variant-card textarea { height: 48px; resize: vertical; }
+    .variant-card input[type="file"] { width: 100%; min-width: 0; font: 10px var(--mono); }
     .variant-card input[type="color"] { width: 100%; height: 30px; padding: 1px; }
     .variant-card .color-field { min-width: 0; }
     .variant-card .duotone-field { min-width: 65px; }
@@ -255,9 +253,7 @@
       <p class="loading" id="loadingStatus" role="status">Loading Trading card · P4…</p>
       <section id="multiExport" aria-labelledby="tab-multi" hidden>
         <div class="multi-toolbar">
-          <input id="multiPhotoInput" type="file" accept="image/*">
-          <label for="multiPhotoInput" class="multi-button">Choose shared photo</label>
-          <span class="multi-status" id="multiPhotoStatus" role="status">No photo selected.</span>
+          <span class="multi-status" id="multiStatus" role="status">Choose an image for each row, then export.</span>
           <button class="multi-button" id="addVariantButton" type="button">Add image</button>
           <button class="multi-button primary" id="exportAllButton" type="button">Export all ZIP</button>
         </div>
@@ -265,12 +261,13 @@
         <template id="variantTemplate">
           <article class="variant-card">
             <div>
-              <label data-label="name">Name</label>
-              <input type="text" data-field="name" maxlength="40" autocomplete="off" aria-label="Name">
+              <label data-label="photo">Image</label>
+              <input type="file" data-field="photo" accept="image/*" aria-label="Image file">
+              <span data-field-status="photo"></span>
             </div>
             <div>
-              <label data-label="text">Text</label>
-              <textarea data-field="text" maxlength="1200" aria-label="Text"></textarea>
+              <label data-label="name">Name text</label>
+              <input type="text" data-field="name" maxlength="40" autocomplete="off" aria-label="Name">
             </div>
             <div>
               <label>Other-language name (optional)</label>
@@ -544,11 +541,9 @@
       const multiExport = document.getElementById("multiExport");
       const variantList = document.getElementById("variantList");
       const variantTemplate = document.getElementById("variantTemplate");
-      const sharedPhotoInput = document.getElementById("multiPhotoInput");
-      const sharedPhotoStatus = document.getElementById("multiPhotoStatus");
+      const multiStatus = document.getElementById("multiStatus");
       const exportAllButton = document.getElementById("exportAllButton");
       const renderFrames = new Map();
-      let sharedPhoto = null;
       let nextVariantId = 1;
 
       function field(card, name) {
@@ -565,7 +560,6 @@
         const card = variantTemplate.content.firstElementChild.cloneNode(true);
         card.dataset.variantId = String(nextVariantId++);
         field(card, "name").value = `Image ${nextVariantId - 1}`;
-        field(card, "text").value = "";
         variantList.appendChild(card);
         return card;
       }
@@ -647,20 +641,19 @@
         });
       }
 
-      async function applyPhoto(doc) {
+      async function applyPhoto(doc, photo) {
         const input = doc.getElementById("fileInput") || doc.getElementById("subjectInput");
         if (!input) throw new Error("This design does not provide a photo upload control.");
         const transfer = new DataTransfer();
-        transfer.items.add(sharedPhoto);
+        transfer.items.add(photo);
         input.files = transfer.files;
         input.dispatchEvent(new Event("change", { bubbles: true }));
-        await waitForPhoto(doc, sharedPhoto.name);
+        await waitForPhoto(doc, photo.name);
       }
 
       async function configureVariant(doc, card) {
         const design = field(card, "design").value;
         const name = field(card, "name").value.trim() || "Untitled";
-        const text = field(card, "text").value;
         const otherName = field(card, "otherName").value;
         const language = field(card, "language").value;
         const color1 = field(card, "color1").value;
@@ -669,7 +662,7 @@
 
         if (design === "grunge") {
           setEditorValue(doc, "nameText", name);
-          setEditorValue(doc, "funLine", text);
+          setEditorValue(doc, "funLine", "");
           setEditorValue(doc, "deptText", language ? otherName : "");
           setEditorValue(doc, "subjectColorA", color1);
           setEditorValue(doc, "subjectColorB", color2);
@@ -678,7 +671,7 @@
           setEditorValue(doc, "applySubjectGrunge", duotone);
         } else {
           setEditorValue(doc, "englishText", name);
-          setEditorValue(doc, "descText", text);
+          setEditorValue(doc, "descText", "");
           setEditorValue(doc, "banglaText", language === "bangla" ? otherName : "");
           setEditorValue(doc, "hindiText", language === "hindi" ? otherName : "");
           setEditorValue(doc, "banglaAccent", language === "bangla" && Boolean(otherName));
@@ -718,17 +711,19 @@
       }
 
       async function renderVariant(card) {
-        if (!sharedPhoto) throw new Error("Choose a shared photo before rendering.");
+        const photo = field(card, "photo").files && field(card, "photo").files[0];
+        if (!photo) throw new Error("Choose an image for this row before rendering.");
+        if (!photo.type.startsWith("image/")) throw new Error("Choose a supported image file for this row.");
         const design = field(card, "design").value;
         const statusNode = card.querySelector(".variant-status");
         statusNode.textContent = "Preparing…";
 
         try {
           const { frame, doc } = await getRenderer(design);
-          if (frame.multiExportPhoto !== sharedPhoto) {
+          if (frame.multiExportPhoto !== photo) {
             statusNode.textContent = "Loading photo…";
-            await applyPhoto(doc);
-            frame.multiExportPhoto = sharedPhoto;
+            await applyPhoto(doc, photo);
+            frame.multiExportPhoto = photo;
           }
           await configureVariant(doc, card);
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -808,19 +803,6 @@
         return new Blob([...entries, ...centralParts, end], { type: "application/zip" });
       }
 
-      sharedPhotoInput.addEventListener("change", () => {
-        const file = sharedPhotoInput.files && sharedPhotoInput.files[0];
-        if (!file) return;
-        if (!file.type.startsWith("image/")) {
-          sharedPhotoStatus.textContent = "Choose a supported image file.";
-          sharedPhoto = null;
-          return;
-        }
-        sharedPhoto = file;
-        sharedPhotoStatus.textContent = `${file.name} · ${Math.ceil(file.size / 1024)} KB`;
-        variantList.querySelectorAll(".variant-card").forEach(invalidateVariant);
-      });
-
       document.getElementById("addVariantButton").addEventListener("click", addVariant);
       variantList.addEventListener("input", event => {
         const card = event.target.closest(".variant-card");
@@ -828,7 +810,13 @@
       });
       variantList.addEventListener("change", event => {
         const card = event.target.closest(".variant-card");
-        if (card) invalidateVariant(card);
+        if (!card) return;
+        if (event.target.matches('[data-field="photo"]')) {
+          const photo = event.target.files && event.target.files[0];
+          const photoStatus = card.querySelector('[data-field-status="photo"]');
+          photoStatus.textContent = photo ? `${photo.name} · ${Math.ceil(photo.size / 1024)} KB` : "No image selected.";
+        }
+        invalidateVariant(card);
       });
       variantList.addEventListener("click", async event => {
         const button = event.target.closest("button[data-action]");
@@ -853,7 +841,7 @@
       exportAllButton.addEventListener("click", async () => {
         const cards = Array.from(variantList.querySelectorAll(".variant-card"));
         if (!cards.length) {
-          sharedPhotoStatus.textContent = "Add at least one image to the list.";
+          multiStatus.textContent = "Add at least one image to the list.";
           return;
         }
         exportAllButton.disabled = true;
@@ -870,14 +858,14 @@
           if (files.length) {
             const zip = await createZip(files);
             downloadBlob(zip, "poster-exports.zip");
-            sharedPhotoStatus.textContent = failures
+            multiStatus.textContent = failures
               ? `${files.length} image(s) exported; ${failures} failed.`
               : `${files.length} image(s) exported.`;
           } else {
-            sharedPhotoStatus.textContent = "No images exported. Fix the errors in the list and try again.";
+            multiStatus.textContent = "No images exported. Fix the errors in the list and try again.";
           }
         } catch (error) {
-          sharedPhotoStatus.textContent = `ZIP error: ${error.message}`;
+          multiStatus.textContent = `ZIP error: ${error.message}`;
         } finally {
           exportAllButton.disabled = false;
         }
